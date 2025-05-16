@@ -1,0 +1,60 @@
+import numpy as np
+import pandas as pd
+from sklearn.metrics.pairwise import cosine_similarity
+
+# Sample movie dataset
+movies = pd.DataFrame([
+    {'id': 1, 'title': 'The Matrix', 'genre': ['Action', 'Sci-Fi'], 'director': 'Wachowski', 'year': 1999},
+    {'id': 2, 'title': 'Inception', 'genre': ['Action', 'Thriller', 'Sci-Fi'], 'director': 'Nolan', 'year': 2010},
+    {'id': 3, 'title': 'The Godfather', 'genre': ['Crime', 'Drama'], 'director': 'Coppola', 'year': 1972},
+    {'id': 4, 'title': 'Pulp Fiction', 'genre': ['Crime', 'Drama'], 'director': 'Tarantino', 'year': 1994},
+    {'id': 5, 'title': 'Interstellar', 'genre': ['Adventure', 'Drama', 'Sci-Fi'], 'director': 'Nolan', 'year': 2014},
+])
+
+# Extract unique genres and directors for one-hot encoding
+unique_genres = sorted(set(g for genres in movies['genre'] for g in genres))
+unique_directors = movies['director'].unique()
+
+def encode_movie_features(movie):
+    genre_vec = [1 if genre in movie['genre'] else 0 for genre in unique_genres]
+    director_vec = [1 if movie['director'] == d else 0 for d in unique_directors]
+    year_norm = (movie['year'] - 1900) / 150  # normalize year roughly between 0 and 1
+    return np.array(genre_vec + director_vec + [year_norm])
+
+# Encode all movies
+movie_features = np.array([encode_movie_features(row) for _, row in movies.iterrows()])
+
+# Example user profile (preferences)
+# Let's say the user loves Sci-Fi and Action, prefers Nolan or Wachowski directors, and recent movies.
+user_profile = {
+    'preferred_genres': ['Sci-Fi', 'Action'],
+    'preferred_directors': ['Nolan', 'Wachowski'],
+    'preferred_year_range': (2000, 2025)
+}
+
+def encode_user_profile(profile):
+    genre_vec = [1 if genre in profile['preferred_genres'] else 0 for genre in unique_genres]
+    director_vec = [1 if director in profile['preferred_directors'] else 0 for director in unique_directors]
+    # normalize preferred year midpoint similarly to movies
+    year_mid = (profile['preferred_year_range'][0] + profile['preferred_year_range'][1]) / 2
+    year_norm = (year_mid - 1900) / 150
+    return np.array(genre_vec + director_vec + [year_norm])
+
+user_vec = encode_user_profile(user_profile)
+
+# Compute cosine similarity between user profile and all movies
+similarities = cosine_similarity([user_vec], movie_features)[0]
+
+# Add similarity scores to dataframe
+movies['similarity'] = similarities
+
+# Recommend top N movies
+def recommend_movies(movies_df, top_n=3):
+    recommended = movies_df.sort_values(by='similarity', ascending=False).head(top_n)
+    return recommended[['title', 'similarity']]
+
+# Show recommendations
+print("Recommende
+d Movies:")
+print(recommend_movies(movies))
+
